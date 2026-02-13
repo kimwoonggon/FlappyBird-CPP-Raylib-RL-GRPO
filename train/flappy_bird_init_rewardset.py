@@ -7,7 +7,6 @@ from pygame.image import load
 from pygame.surfarray import array3d, pixels_alpha
 from pygame.transform import rotate
 import numpy as np
-import cv2
 
 class FlappyBird(object):
     def __init__(self, headless=False, pipe_gap_size=200):

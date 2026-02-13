@@ -1,0 +1,48 @@
+# Build artifacts
+flappy_bird
+flappy_bird.exe
+*.exe
+*.dll
+*.dylib
+*.so
+*.o
+*.obj
+*.a
+*.out
+*.log
+CMakeFiles/
+cmake-build-*/
+build/
+bin/
+lib/
+
+# Raylib / runtime caches
+*.tmp
+*.r2d
+
+# Python environments and caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+.python-version
+
+# Tools and IDE settings
+.vscode/
+.idea/
+*.code-workspace
+.clangd/
+.cache/
+
+# Serena / agent metadata
+.serena/
+.agent/
+
+# OS-generated files
+.DS_Store
+Thumbs.db

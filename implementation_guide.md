@@ -9,6 +9,13 @@
 - 자원 누수/이중 해제/NULL data 체크 같은 취약한 패턴 제거
 - 적절한 주석(특히 모델 입력/출력 shape, 전처리, 좌표계, 충돌 판정)
 
+## 현 저장소 기준 정정사항
+- `main.cpp` 엔트리 포인트는 `src/main.cpp`를 기준으로 한다.
+- 기본 설정 팩토리 메서드 이름은 `Config::Default()`로 통일한다.
+- 앱 실행 메서드 이름은 `App::Run()`으로 통일한다.
+- 테스트 프레임워크는 외부 의존 없이 `tests/test_main.cpp` 경량 러너를 기본으로 하며 `make test`로 실행한다.
+- `SRC := $(wildcard src/**/*.cpp)` 패턴은 `make` 구현/쉘에 따라 불안정할 수 있으므로, Makefile에는 명시적 파일 리스트(`APP_SRC`, `TEST_SRC`)를 권장한다.
+
 ---
 
 ## 현재 코드의 주요 안티패턴(반드시 제거)
@@ -52,10 +59,10 @@
 ## 빌드/컴파일 조건
 - 현재 Makefile:
   - `-std=c++17` 유지
-  - 단일 `main.cpp`에서 다중 소스로 변경 예정
+  - 단일 `main.cpp`에서 다중 소스로 변경
 - 리팩토링 후 Makefile은 아래처럼 갱신:
-  - `SRC = src/main.cpp src/app/App.cpp ...`
-  - 혹은 `SRC := $(wildcard src/**/*.cpp)` (GNU make 호환 시)
+  - `APP_SRC = src/main.cpp src/app/App.cpp ...`
+  - `TEST_SRC = tests/test_main.cpp ...`
 - include 경로는 기존 `(BREW_PREFIX)/include` 기반 유지
 
 ---
@@ -96,6 +103,8 @@ util/
 Rng.h
 Time.h
 Log.h
+tests/
+test_main.cpp
 
 
 ---
@@ -183,9 +192,9 @@ Log.h
 
 
 ## main.cpp에서 남길 내용(필수)
-- `Config config = Config::default();` (또는 파일에서 로드)
+- `Config config = Config::Default();` (또는 파일에서 로드)
 - `App app(config);`
-- `return app.run();`
+- `return app.Run();`
 
 ---
 
@@ -212,16 +221,19 @@ Log.h
 
 ## 리팩토링 단계(실행 순서)
 1) 기존 코드 컴파일/실행 확인 (리팩토링 전 스냅샷)
-2) `Config`, `RaylibContext`, `Resources` 뼈대 추가
-3) `Game` 모듈로 게임 상태/업데이트/렌더 분리
-4) hitmask를 RAII + vector 기반으로 교체 (malloc/free 제거)
-5) AI를 `AiAgent`/`OnnxPolicy`로 분리하고 전역 제거
-6) Makefile을 다중 소스 빌드로 변경
-7) 정리:
+2) 테스트 먼저 작성(`RED`): 컴파일 실패/테스트 실패를 확인
+3) 최소 구현으로 통과(`GREEN`)
+4) 구조/가독성 개선(`REFACTOR`)
+5) `Config`, `RaylibContext`, `Resources` 뼈대 추가
+6) `Game` 모듈로 게임 상태/업데이트/렌더 분리
+7) hitmask를 RAII + vector 기반으로 교체 (malloc/free 제거)
+8) AI를 `AiAgent`/`OnnxPolicy`로 분리하고 전역 제거
+9) Makefile을 다중 소스 빌드로 변경
+10) 정리:
    - unused include 제거
    - const/참조/이동 semantics 정리
    - 함수 길이 축소(대형 함수 분해)
-8) 최종 동작 확인:
+11) 최종 동작 확인:
    - 수동 플레이(SPACE)
    - AI 토글(A)
    - restart, 충돌, 점수 동작 동일
@@ -231,18 +243,25 @@ Log.h
 ## Makefile 변경 지시(필수)
 - `SRC = main.cpp`를 다중 파일로 교체.
 예:
-SRC =
+APP_SRC =
 src/main.cpp
 src/app/App.cpp
 src/game/Game.cpp
 src/game/Collision.cpp
 src/ai/AiAgent.cpp
 src/ai/OnnxPolicy.cpp
-src/gfx/RaylibContext.cpp
-src/gfx/Resources.cpp
+
+TEST_SRC =
+tests/test_main.cpp
+src/game/Game.cpp
+src/game/Collision.cpp
+src/ai/AiAgent.cpp
 
 - include는 `-Isrc` 추가 가능:
   - `INCLUDES += -Isrc`
+- 테스트 타깃 추가:
+  - `test: run_tests`
+  - `./run_tests`
 
 ---
 
