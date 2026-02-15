@@ -7,14 +7,21 @@
 
 #include <onnxruntime_cxx_api.h>
 
+#include "app/Config.h"
+
 namespace ai {
 
 class OnnxPolicy {
  public:
-  OnnxPolicy(const std::string& modelPath, int inputSize, int frameStack);
+  OnnxPolicy(const std::string& modelPath,
+             int inputSize,
+             int frameStack,
+             app::InferenceBackend preferredBackend = app::InferenceBackend::kAuto);
 
   bool HasModel() const { return hasModel_; }
   std::array<float, 2> Infer(const std::vector<float>& input) const;
+  const char* ActiveBackendName() const;
+  bool IsUsingCoreMl() const;
 
  private:
   void TryLoad();
@@ -22,6 +29,8 @@ class OnnxPolicy {
   std::string modelPath_;
   int inputSize_ = 0;
   int frameStack_ = 0;
+  app::InferenceBackend preferredBackend_ = app::InferenceBackend::kAuto;
+  app::InferenceBackend activeBackend_ = app::InferenceBackend::kCpu;
   bool hasModel_ = false;
 
   std::unique_ptr<Ort::Env> env_;

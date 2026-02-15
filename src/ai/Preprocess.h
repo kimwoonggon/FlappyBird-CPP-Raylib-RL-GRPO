@@ -13,6 +13,7 @@ class Preprocess {
   explicit Preprocess(const app::Config& config);
 
   std::vector<float> Process(const Image& source) const;
+  std::vector<float> ProcessPreprocessed(const Image& preprocessed) const;
 
  private:
   app::AiConfig ai_;

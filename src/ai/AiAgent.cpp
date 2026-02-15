@@ -13,7 +13,16 @@ AiAgent::AiAgent(const app::Config& config, OnnxPolicy* policy, util::Rng* rng)
       preprocess_(config) {}
 
 AiDecision AiAgent::Act(const Image& frame) {
-  std::vector<float> processedFrame = preprocess_.Process(frame);
+  const std::vector<float> processedFrame = preprocess_.Process(frame);
+  return ActFromProcessedFrame(processedFrame);
+}
+
+AiDecision AiAgent::ActPreprocessed(const Image& preprocessedFrame) {
+  const std::vector<float> processedFrame = preprocess_.ProcessPreprocessed(preprocessedFrame);
+  return ActFromProcessedFrame(processedFrame);
+}
+
+AiDecision AiAgent::ActFromProcessedFrame(const std::vector<float>& processedFrame) {
   frameStack_.Push(processedFrame);
 
   if (!frameStack_.IsFull() || policy_ == nullptr || !policy_->HasModel()) {

@@ -23,6 +23,7 @@ class AiAgent {
   AiAgent(const app::Config& config, OnnxPolicy* policy, util::Rng* rng);
 
   AiDecision Act(const Image& frame);
+  AiDecision ActPreprocessed(const Image& preprocessedFrame);
   AiDecision FallbackDecision();
 
   void Reset();
@@ -30,6 +31,8 @@ class AiAgent {
   std::vector<std::vector<float>> DebugFrames() const { return frameStack_.Frames(); }
 
  private:
+  AiDecision ActFromProcessedFrame(const std::vector<float>& processedFrame);
+
   app::Config config_;
   OnnxPolicy* policy_ = nullptr;
   util::Rng* rng_ = nullptr;

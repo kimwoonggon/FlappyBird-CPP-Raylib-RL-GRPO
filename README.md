@@ -60,6 +60,16 @@ make
 make setup_env
 ```
 
+### Backend-Specific Build
+
+```bash
+# CPU-only binary (CoreML code path disabled at compile time)
+make build_cpu
+
+# CoreML-enabled binary
+make build_coreml
+```
+
 ### Creating a Distribution Package
 
 ```bash
@@ -77,6 +87,35 @@ make run
 
 # Or manually
 ./flappy_bird
+```
+
+### Runtime Mode Injection (INFER / PRE)
+
+`main()` reads these environment variables:
+- `FLAPPY_INFERENCE=auto|cpu|coreml`
+- `FLAPPY_PREPROCESS=auto|cpu|shader`
+
+For convenience, Makefile run targets forward `INFER` and `PRE` into those env vars.
+
+```bash
+# CoreML build + CoreML inference + shader preprocess
+make run_coreml INFER=coreml PRE=shader
+
+# CoreML build + CPU inference + CPU preprocess
+make run_coreml INFER=cpu PRE=cpu
+
+# CPU build + CPU inference + shader preprocess
+make run_cpu INFER=cpu PRE=shader
+
+# Default app target + auto mode
+make run INFER=auto PRE=auto
+```
+
+Direct execution is also possible:
+
+```bash
+FLAPPY_INFERENCE=coreml FLAPPY_PREPROCESS=shader \
+DYLD_LIBRARY_PATH=/opt/homebrew/lib:$DYLD_LIBRARY_PATH ./flappy_bird_coreml
 ```
 
 

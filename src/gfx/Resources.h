@@ -153,6 +153,52 @@ class RenderTextureResource {
   bool loaded_ = false;
 };
 
+class ShaderResource {
+ public:
+  ShaderResource() = default;
+  ~ShaderResource() { Reset(); }
+
+  ShaderResource(const ShaderResource&) = delete;
+  ShaderResource& operator=(const ShaderResource&) = delete;
+
+  ShaderResource(ShaderResource&& other) noexcept : shader_(other.shader_), loaded_(other.loaded_) {
+    other.shader_ = Shader{};
+    other.loaded_ = false;
+  }
+
+  ShaderResource& operator=(ShaderResource&& other) noexcept {
+    if (this != &other) {
+      Reset();
+      shader_ = other.shader_;
+      loaded_ = other.loaded_;
+      other.shader_ = Shader{};
+      other.loaded_ = false;
+    }
+    return *this;
+  }
+
+  void LoadFromMemory(const char* vertexCode, const char* fragmentCode) {
+    Reset();
+    shader_ = LoadShaderFromMemory(vertexCode, fragmentCode);
+    loaded_ = shader_.id > 0;
+  }
+
+  void Reset() {
+    if (loaded_) {
+      UnloadShader(shader_);
+      loaded_ = false;
+      shader_ = Shader{};
+    }
+  }
+
+  const Shader& Get() const { return shader_; }
+  bool IsValid() const { return loaded_; }
+
+ private:
+  Shader shader_{};
+  bool loaded_ = false;
+};
+
 class ImageResource {
  public:
   ImageResource() = default;

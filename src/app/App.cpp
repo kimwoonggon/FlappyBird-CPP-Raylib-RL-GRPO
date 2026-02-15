@@ -10,6 +10,49 @@
 namespace app {
 namespace {
 constexpr int kFlapDisplayFrames = 15;
+constexpr const char* kPreprocessFragmentShader = R"glsl(
+#version 330
+
+in vec2 fragTexCoord;
+in vec4 fragColor;
+
+out vec4 finalColor;
+
+uniform sampler2D texture0;
+uniform float cropStart;
+uniform float cropRange;
+
+void main() {
+  vec2 uv = vec2(fragTexCoord.x, cropStart + (fragTexCoord.y * cropRange));
+  vec4 src = texture(texture0, uv);
+  float gray = dot(src.rgb, vec3(0.299, 0.587, 0.114));
+  finalColor = vec4(gray, gray, gray, 1.0);
+}
+)glsl";
+
+const char* InferenceBackendToString(InferenceBackend backend) {
+  switch (backend) {
+    case InferenceBackend::kAuto:
+      return "auto";
+    case InferenceBackend::kCpu:
+      return "cpu";
+    case InferenceBackend::kCoreMl:
+      return "coreml";
+  }
+  return "unknown";
+}
+
+const char* PreprocessBackendToString(PreprocessBackend backend) {
+  switch (backend) {
+    case PreprocessBackend::kAuto:
+      return "auto";
+    case PreprocessBackend::kCpu:
+      return "cpu";
+    case PreprocessBackend::kGpuShader:
+      return "shader";
+  }
+  return "unknown";
+}
 
 const char* GameStateToString(game::GameState state) {
   switch (state) {
@@ -28,7 +71,10 @@ App::App(const Config& config)
     : config_(config),
       rng_(static_cast<uint32_t>(GetTime() * 1000000.0)),
       context_(config.screen.width, config.screen.height, config.screen.fps, "FlappyBird-RL"),
-      policy_(config.ai.modelPath, config.ai.inputSize, config.ai.frameStack),
+      policy_(config.ai.modelPath,
+              config.ai.inputSize,
+              config.ai.frameStack,
+              config.ai.inferenceBackend),
       aiAgent_(config_, &policy_, &rng_) {
   SetTraceLogLevel(LOG_INFO);
   TraceLog(LOG_INFO,
@@ -38,6 +84,10 @@ App::App(const Config& config)
            config_.screen.fps,
            config_.ai.inputSize,
            config_.ai.modelPath.c_str());
+  TraceLog(LOG_INFO,
+           "[AI] Requested inference=%s preprocess=%s",
+           InferenceBackendToString(config_.ai.inferenceBackend),
+           PreprocessBackendToString(config_.ai.preprocessBackend));
 
   // Load all assets up-front so the main loop stays real-time safe.
   jumpSound_.Load("assets/audio/jump.mp3");
@@ -87,6 +137,42 @@ App::App(const Config& config)
            "[AI] Frame target allocated (%dx%d).",
            config_.screen.width,
            config_.screen.height);
+
+  preprocessTarget_.Load(config_.ai.inputSize, config_.ai.inputSize);
+  preprocessShader_.LoadFromMemory(nullptr, kPreprocessFragmentShader);
+
+  if (preprocessTarget_.IsValid() && preprocessShader_.IsValid()) {
+    preprocessCropStartLoc_ = GetShaderLocation(preprocessShader_.Get(), "cropStart");
+    preprocessCropRangeLoc_ = GetShaderLocation(preprocessShader_.Get(), "cropRange");
+
+    const float sourceHeight = static_cast<float>(config_.screen.height);
+    const float cropStart =
+        std::clamp(static_cast<float>(config_.ai.cropY) / sourceHeight, 0.0F, 1.0F);
+    const float cropEnd = std::clamp(
+        static_cast<float>(config_.ai.cropY + config_.ai.cropHeight) / sourceHeight, 0.0F, 1.0F);
+    const float cropRange = std::max(cropEnd - cropStart, 1.0F / sourceHeight);
+
+    if (preprocessCropStartLoc_ >= 0) {
+      SetShaderValue(
+          preprocessShader_.Get(), preprocessCropStartLoc_, &cropStart, SHADER_UNIFORM_FLOAT);
+    }
+    if (preprocessCropRangeLoc_ >= 0) {
+      SetShaderValue(
+          preprocessShader_.Get(), preprocessCropRangeLoc_, &cropRange, SHADER_UNIFORM_FLOAT);
+    }
+
+    TraceLog(LOG_INFO,
+             "[AI] GPU preprocess enabled (target=%dx%d cropStart=%.3f cropRange=%.3f).",
+             config_.ai.inputSize,
+             config_.ai.inputSize,
+             cropStart,
+             cropRange);
+  } else if (config_.ai.preprocessBackend == PreprocessBackend::kGpuShader) {
+    TraceLog(LOG_WARNING,
+             "[AI] GPU preprocess was requested but unavailable, forcing CPU preprocessing.");
+  } else {
+    TraceLog(LOG_WARNING, "[AI] GPU preprocess unavailable, falling back to CPU preprocessing.");
+  }
 
   for (gfx::TextureResource& texture : debugTextures_) {
     Image emptyImage = GenImageColor(config_.ai.frameDisplaySize, config_.ai.frameDisplaySize, BLACK);
@@ -149,9 +235,18 @@ void App::Update() {
   // When AI control is live, render to the off-screen buffer and query the policy.
   if (aiControl_ && policy_.HasModel()) {
     RenderSceneToTarget();
-    Image screenshot = LoadImageFromTexture(frameTarget_.Get().texture);
-    ai::AiDecision decision = aiAgent_.Act(screenshot);
-    UnloadImage(screenshot);
+    ai::AiDecision decision{};
+
+    if (ShouldUseGpuPreprocess()) {
+      RenderPreprocessToTarget();
+      Image preprocessed = LoadImageFromTexture(preprocessTarget_.Get().texture);
+      decision = aiAgent_.ActPreprocessed(preprocessed);
+      UnloadImage(preprocessed);
+    } else {
+      Image screenshot = LoadImageFromTexture(frameTarget_.Get().texture);
+      decision = aiAgent_.Act(screenshot);
+      UnloadImage(screenshot);
+    }
 
     flapRequested = decision.action == 1;
     TraceLog(LOG_DEBUG,
@@ -272,14 +367,58 @@ void App::RenderSceneToTarget() {
   DrawGameScene();
 }
 
+void App::RenderPreprocessToTarget() {
+  if (!HasGpuPreprocessPath()) {
+    return;
+  }
+
+  gfx::TextureModeScope scope(preprocessTarget_.Get());
+  ClearBackground(BLACK);
+
+  BeginShaderMode(preprocessShader_.Get());
+  Rectangle source = {0.0F,
+                      0.0F,
+                      static_cast<float>(frameTarget_.Get().texture.width),
+                      -static_cast<float>(frameTarget_.Get().texture.height)};
+  Rectangle target = {0.0F,
+                      0.0F,
+                      static_cast<float>(config_.ai.inputSize),
+                      static_cast<float>(config_.ai.inputSize)};
+  DrawTexturePro(frameTarget_.Get().texture, source, target, Vector2{0.0F, 0.0F}, 0.0F, WHITE);
+  EndShaderMode();
+}
+
+bool App::HasGpuPreprocessPath() const {
+  return preprocessTarget_.IsValid() && preprocessShader_.IsValid() &&
+         preprocessCropStartLoc_ >= 0 && preprocessCropRangeLoc_ >= 0;
+}
+
+bool App::ShouldUseGpuPreprocess() const {
+  if (!HasGpuPreprocessPath()) {
+    return false;
+  }
+
+  if (config_.ai.preprocessBackend == PreprocessBackend::kCpu) {
+    return false;
+  }
+  return true;
+}
+
 void App::WarmupAi() {
   // Populate the frame stack so the policy sees a full history from frame one.
   TraceLog(LOG_INFO, "[AI] Warmup start (frames=%d).", config_.ai.frameStack);
   for (int i = 0; i < config_.ai.frameStack; ++i) {
     RenderSceneToTarget();
-    Image screenshot = LoadImageFromTexture(frameTarget_.Get().texture);
-    aiAgent_.Act(screenshot);
-    UnloadImage(screenshot);
+    if (ShouldUseGpuPreprocess()) {
+      RenderPreprocessToTarget();
+      Image preprocessed = LoadImageFromTexture(preprocessTarget_.Get().texture);
+      aiAgent_.ActPreprocessed(preprocessed);
+      UnloadImage(preprocessed);
+    } else {
+      Image screenshot = LoadImageFromTexture(frameTarget_.Get().texture);
+      aiAgent_.Act(screenshot);
+      UnloadImage(screenshot);
+    }
   }
   TraceLog(LOG_INFO, "[AI] Warmup complete; frame stack primed.");
 }

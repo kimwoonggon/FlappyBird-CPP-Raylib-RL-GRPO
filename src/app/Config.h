@@ -4,6 +4,18 @@
 
 namespace app {
 
+enum class InferenceBackend {
+  kAuto,
+  kCpu,
+  kCoreMl
+};
+
+enum class PreprocessBackend {
+  kAuto,
+  kCpu,
+  kGpuShader
+};
+
 struct ScreenConfig {
   int width = 288;
   int height = 512;
@@ -31,6 +43,8 @@ struct AiConfig {
   int frameDisplaySize = 40;
   int cropY = 108;
   int cropHeight = 512;
+  InferenceBackend inferenceBackend = InferenceBackend::kAuto;
+  PreprocessBackend preprocessBackend = PreprocessBackend::kAuto;
   std::string modelPath = "trained_models/flappy_bird_rl.onnx";
 };
 

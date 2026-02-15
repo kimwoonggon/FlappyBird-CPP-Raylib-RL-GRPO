@@ -1,5 +1,10 @@
 CC = g++
 CFLAGS = -Wall -Wextra -Wno-narrowing -std=c++17
+CPU_DEFINES = -DAI_ENABLE_COREML=0
+COREML_DEFINES = -DAI_ENABLE_COREML=1
+BENCH_OUT ?= bench_results.md
+INFER ?= auto
+PRE ?= auto
 
 BREW_PREFIX := $(shell brew --prefix)
 LDFLAGS = -lraylib -framework OpenGL -framework Cocoa -framework IOKit -framework CoreVideo
@@ -11,6 +16,12 @@ INCLUDES = $(RAYLIB_INCLUDE) $(ONNX_INCLUDE) -Isrc
 
 APP_TARGET = flappy_bird
 TEST_TARGET = run_tests
+APP_TARGET_CPU = flappy_bird_cpu
+APP_TARGET_COREML = flappy_bird_coreml
+TEST_TARGET_CPU = run_tests_cpu
+TEST_TARGET_COREML = run_tests_coreml
+BENCH_TARGET_CPU = perf_compare_cpu
+BENCH_TARGET_COREML = perf_compare_coreml
 RM = rm -f
 CP = cp -r
 MKDIR = mkdir -p
@@ -40,20 +51,70 @@ TEST_SRC = \
 	src/ai/Preprocess.cpp \
 	src/ai/AiAgent.cpp
 
+BENCH_SRC = \
+	tests/perf_compare.cpp \
+	src/ai/FrameStack.cpp \
+	src/ai/OnnxPolicy.cpp \
+	src/ai/Preprocess.cpp \
+	src/ai/AiAgent.cpp
+
 all: $(APP_TARGET)
 
 $(APP_TARGET): $(APP_SRC)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+	$(CC) $(CFLAGS) $(COREML_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
 
 $(TEST_TARGET): $(TEST_SRC)
-	$(CC) $(CFLAGS) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+	$(CC) $(CFLAGS) $(COREML_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(APP_TARGET_CPU): $(APP_SRC)
+	$(CC) $(CFLAGS) $(CPU_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(APP_TARGET_COREML): $(APP_SRC)
+	$(CC) $(CFLAGS) $(COREML_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(TEST_TARGET_CPU): $(TEST_SRC)
+	$(CC) $(CFLAGS) $(CPU_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(TEST_TARGET_COREML): $(TEST_SRC)
+	$(CC) $(CFLAGS) $(COREML_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(BENCH_TARGET_CPU): $(BENCH_SRC)
+	$(CC) $(CFLAGS) $(CPU_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
+
+$(BENCH_TARGET_COREML): $(BENCH_SRC)
+	$(CC) $(CFLAGS) $(COREML_DEFINES) $(INCLUDES) -o $@ $^ $(LDFLAGS) $(ONNX_LIBS)
 
 clean:
-	$(RM) $(APP_TARGET) $(TEST_TARGET)
+	$(RM) $(APP_TARGET) $(TEST_TARGET) $(APP_TARGET_CPU) $(APP_TARGET_COREML)
+	$(RM) $(TEST_TARGET_CPU) $(TEST_TARGET_COREML) $(BENCH_TARGET_CPU) $(BENCH_TARGET_COREML)
 	$(RMDIR) $(DIST_DIR) $(DIST_DIR).tar.gz
 
 test: $(TEST_TARGET)
 	./$(TEST_TARGET)
+
+test_cpu: $(TEST_TARGET_CPU)
+	./$(TEST_TARGET_CPU)
+
+test_coreml: $(TEST_TARGET_COREML)
+	./$(TEST_TARGET_COREML)
+
+build_cpu: $(APP_TARGET_CPU)
+
+build_coreml: $(APP_TARGET_COREML)
+
+run_cpu: $(APP_TARGET_CPU)
+	FLAPPY_INFERENCE=$(INFER) FLAPPY_PREPROCESS=$(PRE) DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(APP_TARGET_CPU)
+
+run_coreml: $(APP_TARGET_COREML)
+	FLAPPY_INFERENCE=$(INFER) FLAPPY_PREPROCESS=$(PRE) DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(APP_TARGET_COREML)
+
+bench_cpu: $(BENCH_TARGET_CPU)
+	FLAPPY_BENCH_OUT=$(BENCH_OUT) DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(BENCH_TARGET_CPU)
+
+bench_coreml: $(BENCH_TARGET_COREML)
+	FLAPPY_BENCH_OUT=$(BENCH_OUT) DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(BENCH_TARGET_COREML)
+
+bench_compare: bench_coreml
 
 dist: $(APP_TARGET)
 	# Create distribution directory structure
@@ -132,6 +193,6 @@ install_deps:
 	@echo "All dependencies installed for macOS"
 
 run: $(APP_TARGET)
-	DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(APP_TARGET)
+	FLAPPY_INFERENCE=$(INFER) FLAPPY_PREPROCESS=$(PRE) DYLD_LIBRARY_PATH=$(BREW_PREFIX)/lib:$$DYLD_LIBRARY_PATH ./$(APP_TARGET)
 
-.PHONY: all clean test dist install_raylib install_onnx setup_env install_deps run
+.PHONY: all clean test test_cpu test_coreml dist install_raylib install_onnx setup_env install_deps run build_cpu build_coreml run_cpu run_coreml bench_cpu bench_coreml bench_compare

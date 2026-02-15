@@ -32,6 +32,12 @@ class App {
   void DrawGameScene() const;
   // Renders the scene into an off-screen texture that feeds the AI policy.
   void RenderSceneToTarget();
+  // Applies crop/resize/grayscale on GPU into the model input render target.
+  void RenderPreprocessToTarget();
+  // Indicates whether the GPU preprocessing path is available.
+  bool HasGpuPreprocessPath() const;
+  // Applies runtime preference on top of GPU preprocessing availability.
+  bool ShouldUseGpuPreprocess() const;
   // Steps the agent a few frames so its frame stack is fully populated.
   void WarmupAi();
   // Uploads the latest preprocessed AI frames to textures for on-screen debugging.
@@ -66,6 +72,10 @@ class App {
 
   // Off-screen render target plus textures shown in the AI debug HUD.
   gfx::RenderTextureResource frameTarget_;
+  gfx::RenderTextureResource preprocessTarget_;
+  gfx::ShaderResource preprocessShader_;
+  int preprocessCropStartLoc_ = -1;
+  int preprocessCropRangeLoc_ = -1;
   std::array<gfx::TextureResource, 4> debugTextures_;
 
   // Runtime flags for AI control and its temporary UI cues.
