@@ -33,11 +33,16 @@ DIST_DIR = flappy_bird_dist
 APP_SRC = \
 	src/main.cpp \
 	src/app/App.cpp \
+	src/app/App.Init.cpp \
+	src/app/App.Ai.cpp \
+	src/app/App.Render.cpp \
+	src/app/App.Physics.cpp \
 	src/game/Pipe.cpp \
 	src/game/Collision.cpp \
 	src/game/Game.cpp \
 	src/ai/FrameStack.cpp \
 	src/ai/OnnxPolicy.cpp \
+	src/ai/OnnxPolicyProvider.cpp \
 	src/ai/Preprocess.cpp \
 	src/ai/AiAgent.cpp
 
@@ -48,6 +53,7 @@ TEST_SRC = \
 	src/game/Game.cpp \
 	src/ai/FrameStack.cpp \
 	src/ai/OnnxPolicy.cpp \
+	src/ai/OnnxPolicyProvider.cpp \
 	src/ai/Preprocess.cpp \
 	src/ai/AiAgent.cpp
 
@@ -55,6 +61,7 @@ BENCH_SRC = \
 	tests/perf_compare.cpp \
 	src/ai/FrameStack.cpp \
 	src/ai/OnnxPolicy.cpp \
+	src/ai/OnnxPolicyProvider.cpp \
 	src/ai/Preprocess.cpp \
 	src/ai/AiAgent.cpp
 

@@ -1,3 +1,8 @@
+/**
+ * @file tests/test_main.cpp
+ * @brief Implementation for test_main.
+ */
+
 #include <array>
 #include <cstdlib>
 #include <functional>
@@ -17,6 +22,9 @@
 
 namespace {
 
+/**
+ * @brief Result container for a single unit test execution.
+ */
 struct TestResult {
   std::string name;
   bool passed;
@@ -30,6 +38,12 @@ struct TestResult {
     }                          \
   } while (false)
 
+/**
+ * @brief Runs one test case and captures exception as failure.
+ * @param name Test display name.
+ * @param fn Test function body.
+ * @return Test result status and optional error message.
+ */
 TestResult Run(const std::string& name, const std::function<void()>& fn) {
   try {
     fn();
@@ -39,6 +53,9 @@ TestResult Run(const std::string& name, const std::function<void()>& fn) {
   }
 }
 
+/**
+ * @brief Verifies default runtime configuration values.
+ */
 void TestConfigDefaults() {
   const app::Config config = app::Config::Default();
   ASSERT_TRUE(config.screen.width == 288, "screen.width should be 288");
@@ -49,6 +66,9 @@ void TestConfigDefaults() {
   ASSERT_TRUE(config.ai.frameStack == 4, "ai frameStack should be 4");
 }
 
+/**
+ * @brief Verifies RNG integer generation stays within inclusive bounds.
+ */
 void TestRngRange() {
   util::Rng rng(7U);
   for (int i = 0; i < 128; ++i) {
@@ -57,6 +77,9 @@ void TestRngRange() {
   }
 }
 
+/**
+ * @brief Verifies pipe generation outputs expected spawn constraints.
+ */
 void TestPipeGeneration() {
   util::Rng rng(9U);
   const app::Config config = app::Config::Default();
@@ -67,6 +90,9 @@ void TestPipeGeneration() {
   ASSERT_TRUE(pipe.yLower <= 260, "lower pipe start should be clamped to <= 260");
 }
 
+/**
+ * @brief Verifies hit-mask access and pixel-perfect overlap detection.
+ */
 void TestHitMaskAndCollision() {
   game::HitMask bird(2, 2, {0, 1, 0, 1});
   game::HitMask pipe(2, 2, {0, 0, 1, 1});
@@ -79,6 +105,9 @@ void TestHitMaskAndCollision() {
   ASSERT_TRUE(collided, "pixel collision should detect overlapping solid pixels");
 }
 
+/**
+ * @brief Verifies core game state transitions and runtime updates.
+ */
 void TestGameStateTransition() {
   app::Config config = app::Config::Default();
   config.physics.gravity = 1.0F;
@@ -100,6 +129,9 @@ void TestGameStateTransition() {
   ASSERT_TRUE(!game.Pipes().empty(), "pipes should be generated");
 }
 
+/**
+ * @brief Verifies frame stack order and tensor serialization.
+ */
 void TestFrameStackOrder() {
   ai::FrameStack stack(4, 4);
 
@@ -114,11 +146,17 @@ void TestFrameStackOrder() {
   ASSERT_TRUE(tensor.back() == 4.0F, "newest frame should be last in tensor");
 }
 
+/**
+ * @brief Verifies missing-model behavior keeps ONNX policy disabled.
+ */
 void TestOnnxPolicyMissingModel() {
   ai::OnnxPolicy policy("dummy.onnx", 84, 4);
   ASSERT_TRUE(!policy.HasModel(), "missing model should keep policy disabled");
 }
 
+/**
+ * @brief Verifies agent fallback action contract without model session.
+ */
 void TestAiAgentFallback() {
   app::Config config = app::Config::Default();
   util::Rng rng(13U);
@@ -133,6 +171,10 @@ void TestAiAgentFallback() {
 
 }  // namespace
 
+/**
+ * @brief Entry point for lightweight repository test suite.
+ * @return EXIT_SUCCESS when all tests pass.
+ */
 int main() {
   const std::vector<TestResult> results = {
       Run("Config defaults", TestConfigDefaults),

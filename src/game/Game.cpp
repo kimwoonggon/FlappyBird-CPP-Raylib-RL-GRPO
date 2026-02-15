@@ -1,3 +1,8 @@
+/**
+ * @file src/game/Game.cpp
+ * @brief Implementation for Game.
+ */
+
 #include "game/Game.h"
 
 #include <algorithm>
@@ -8,6 +13,15 @@ constexpr int kAnimationFrames[4] = {0, 1, 2, 1};
 constexpr int kAnimationLength = 4;
 }  // namespace
 
+/**
+ * @brief Constructs game simulation container and initializes run state.
+ * @param config Runtime configuration.
+ * @param rng Shared random generator.
+ * @param birdWidth Bird sprite width.
+ * @param birdHeight Bird sprite height.
+ * @param pipeWidth Pipe sprite width.
+ * @param pipeHeight Pipe sprite height.
+ */
 Game::Game(const app::Config& config,
            util::Rng& rng,
            int birdWidth,
@@ -23,6 +37,9 @@ Game::Game(const app::Config& config,
   Reset();
 }
 
+/**
+ * @brief Resets bird, score, and pipes to initial ready-state values.
+ */
 void Game::Reset() {
   bird_.position = {static_cast<float>(config_.screen.width) / 5.0F,
                     static_cast<float>(config_.screen.height) / 2.0F};
@@ -40,12 +57,19 @@ void Game::Reset() {
   pipes_.push_back(GeneratePipe(config_, static_cast<int>(config_.screen.width * 1.5F), rng_, pipeWidth_, pipeHeight_));
 }
 
+/**
+ * @brief Switches game state from ready to playing.
+ */
 void Game::Start() {
   if (state_ == GameState::kReady) {
     state_ = GameState::kPlaying;
   }
 }
 
+/**
+ * @brief Executes one simulation tick while in playing state.
+ * @param flapRequested Whether flap action is requested.
+ */
 void Game::Update(bool flapRequested) {
   if (state_ != GameState::kPlaying) {
     return;
@@ -61,10 +85,17 @@ void Game::Update(bool flapRequested) {
   }
 }
 
+/**
+ * @brief Forces state to game over.
+ */
 void Game::SetGameOver() {
   state_ = GameState::kGameOver;
 }
 
+/**
+ * @brief Applies flap impulse and gravity integration for the bird.
+ * @param flapRequested Whether flap is applied this frame.
+ */
 void Game::StepPhysics(bool flapRequested) {
   if (flapRequested) {
     bird_.velocity = config_.physics.jumpVelocity;
@@ -82,6 +113,9 @@ void Game::StepPhysics(bool flapRequested) {
   bird_.position.y = std::max(0.0F, bird_.position.y + bird_.velocity);
 }
 
+/**
+ * @brief Advances bird wing animation frame sequence.
+ */
 void Game::StepAnimation() {
   ++bird_.frameCounter;
   if (bird_.frameCounter >= 3) {
@@ -91,6 +125,9 @@ void Game::StepAnimation() {
   }
 }
 
+/**
+ * @brief Scrolls pipes, spawns new obstacles, and removes off-screen ones.
+ */
 void Game::StepPipes() {
   for (Pipe& pipe : pipes_) {
     pipe.xUpper += static_cast<int>(config_.pipe.velocityX);
@@ -106,6 +143,9 @@ void Game::StepPipes() {
   }
 }
 
+/**
+ * @brief Updates score and high-score when bird crosses a pipe center.
+ */
 void Game::StepScore() {
   const float birdCenterX = bird_.position.x + static_cast<float>(birdWidth_) / 2.0F;
   for (const Pipe& pipe : pipes_) {

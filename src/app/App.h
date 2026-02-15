@@ -1,3 +1,8 @@
+/**
+ * @file src/app/App.h
+ * @brief Declarations for App.
+ */
+
 #pragma once
 
 #include <array>
@@ -14,36 +19,67 @@
 
 namespace app {
 
-// App wires together the renderer, gameplay loop, and optional ONNX-powered AI control.
+/**
+ * @brief Coordinates runtime loop, rendering, gameplay, and AI control.
+ */
 class App {
  public:
+  /**
+   * @brief Constructs full application runtime.
+   * @param config Runtime configuration.
+   */
   explicit App(const Config& config);
+
+  /**
+   * @brief Executes main game loop until window closes.
+   * @return Process exit code.
+   */
   int Run();
 
  private:
-  // Handles toggles such as AI enablement and restarting the run.
+  /** @brief Handles global key input such as AI toggle and restart. */
   void HandleGlobalInput();
-  // Advances the simulation and feeds actions from either the player or policy.
+  /** @brief Logs startup configuration for diagnostics. */
+  void LogStartupConfig() const;
+  /** @brief Loads textures and audio resources. */
+  void InitializeAssets();
+  /** @brief Builds pixel masks for collision detection. */
+  void InitializeCollisionMasks();
+  /** @brief Creates gameplay object after assets are ready. */
+  void InitializeGame();
+  /** @brief Initializes render targets and shader used by AI preprocessing. */
+  void InitializeAiPipeline();
+  /** @brief Creates textures used by AI debug HUD. */
+  void InitializeDebugTextures();
+  /** @brief Advances one simulation step. */
   void Update();
-  // Renders the current scene plus overlays in the main window.
+  /** @brief Evaluates one AI decision for current frame. */
+  ai::AiDecision EvaluateAiDecision();
+  /** @brief Applies physics update and collision transition checks. */
+  void UpdateWorld(bool flapRequested);
+  /** @brief Draws one frame to the window. */
   void Draw();
+  /** @brief Draws non-AI HUD elements. */
+  void DrawHud() const;
+  /** @brief Draws AI probability and frame stack overlay. */
+  void DrawAiDebugHud();
 
-  // Draws all world elements (background, pipes, bird) to the active render target.
+  /** @brief Draws gameplay scene to currently active render target. */
   void DrawGameScene() const;
-  // Renders the scene into an off-screen texture that feeds the AI policy.
+  /** @brief Renders scene into AI source render target. */
   void RenderSceneToTarget();
-  // Applies crop/resize/grayscale on GPU into the model input render target.
+  /** @brief Applies GPU preprocessing and writes into model-sized render target. */
   void RenderPreprocessToTarget();
-  // Indicates whether the GPU preprocessing path is available.
+  /** @brief Checks whether GPU preprocessing resources are usable. */
   bool HasGpuPreprocessPath() const;
-  // Applies runtime preference on top of GPU preprocessing availability.
+  /** @brief Resolves runtime choice between CPU and GPU preprocess paths. */
   bool ShouldUseGpuPreprocess() const;
-  // Steps the agent a few frames so its frame stack is fully populated.
+  /** @brief Warms AI frame stack before active gameplay. */
   void WarmupAi();
-  // Uploads the latest preprocessed AI frames to textures for on-screen debugging.
+  /** @brief Updates AI debug textures from latest frame stack. */
   void UpdateDebugTextures();
 
-  // Runs bounding-box and pixel-perfect checks against every active pipe.
+  /** @brief Runs bounding-box and pixel-perfect collision checks. */
   bool CheckPipeCollisions();
 
   // Core runtime state and dependencies.

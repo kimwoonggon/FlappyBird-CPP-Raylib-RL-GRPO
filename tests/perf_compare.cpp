@@ -1,3 +1,8 @@
+/**
+ * @file tests/perf_compare.cpp
+ * @brief Implementation for perf_compare.
+ */
+
 #include <algorithm>
 #include <chrono>
 #include <cstdlib>
@@ -40,6 +45,9 @@ void main() {
 }
 )glsl";
 
+/**
+ * @brief One benchmark row for report output.
+ */
 struct PerfResult {
   std::string name;
   std::string requestedBackend;
@@ -49,6 +57,12 @@ struct PerfResult {
   double fps = 0.0;
 };
 
+/**
+ * @brief Reads positive integer env var with fallback.
+ * @param name Environment variable name.
+ * @param fallback Value used when unset/invalid.
+ * @return Parsed positive integer.
+ */
 int ReadEnvInt(const char* name, int fallback) {
   const char* value = std::getenv(name);
   if (value == nullptr) {
@@ -62,6 +76,12 @@ int ReadEnvInt(const char* name, int fallback) {
   }
 }
 
+/**
+ * @brief Reads string env var with fallback.
+ * @param name Environment variable name.
+ * @param fallback Value used when unset/empty.
+ * @return Parsed string.
+ */
 std::string ReadEnvString(const char* name, const std::string& fallback) {
   const char* value = std::getenv(name);
   if (value == nullptr || value[0] == '\0') {
@@ -70,6 +90,12 @@ std::string ReadEnvString(const char* name, const std::string& fallback) {
   return std::string(value);
 }
 
+/**
+ * @brief Draws a synthetic scene into source render target for benchmarking.
+ * @param config Runtime config for screen/base geometry.
+ * @param target Off-screen render target.
+ * @param frameIndex Frame counter used to animate primitives.
+ */
 void RenderSyntheticScene(const app::Config& config,
                           const gfx::RenderTextureResource& target,
                           int frameIndex) {
@@ -86,6 +112,13 @@ void RenderSyntheticScene(const app::Config& config,
   DrawRectangle(0, static_cast<int>(config.screen.baseY), config.screen.width, 30, DARKGRAY);
 }
 
+/**
+ * @brief Runs shader preprocess pass from source target into model-sized target.
+ * @param config Runtime config containing input dimensions.
+ * @param srcTarget Source render target.
+ * @param preprocessTarget Destination preprocess target.
+ * @param preprocessShader Shader used for crop/resize/grayscale pass.
+ */
 void RenderPreprocessedFrame(const app::Config& config,
                              const gfx::RenderTextureResource& srcTarget,
                              const gfx::RenderTextureResource& preprocessTarget,
@@ -106,6 +139,11 @@ void RenderPreprocessedFrame(const app::Config& config,
   EndShaderMode();
 }
 
+/**
+ * @brief Loads preprocess shader and initializes crop uniform values.
+ * @param config Runtime config containing crop parameters.
+ * @param shader Output shader resource to initialize.
+ */
 void SetupPreprocessShader(const app::Config& config,
                            gfx::ShaderResource* shader) {
   if (shader == nullptr) {
@@ -134,6 +172,16 @@ void SetupPreprocessShader(const app::Config& config,
   SetShaderValue(shader->Get(), cropRangeLoc, &cropRange, SHADER_UNIFORM_FLOAT);
 }
 
+/**
+ * @brief Executes one benchmark configuration and returns timing metrics.
+ * @param config Runtime configuration.
+ * @param caseName Display name of benchmark case.
+ * @param backend Requested inference backend.
+ * @param useShaderPreprocess Whether shader preprocess path is used.
+ * @param warmupFrames Warmup frame count.
+ * @param measureFrames Measured frame count.
+ * @return Benchmark result row.
+ */
 PerfResult RunCase(const app::Config& config,
                    const std::string& caseName,
                    app::InferenceBackend backend,
@@ -212,6 +260,10 @@ PerfResult RunCase(const app::Config& config,
   return result;
 }
 
+/**
+ * @brief Prints benchmark results to stdout.
+ * @param results Benchmark rows.
+ */
 void PrintResults(const std::vector<PerfResult>& results) {
   std::cout << "\n=== AI Pipeline Perf Compare ===\n";
   std::cout << "case | requested_backend | active_backend | preprocess | avg_ms | fps\n";
@@ -235,6 +287,13 @@ void PrintResults(const std::vector<PerfResult>& results) {
   }
 }
 
+/**
+ * @brief Writes benchmark results to markdown report file.
+ * @param outputPath Output markdown path.
+ * @param results Benchmark rows.
+ * @param warmupFrames Warmup frame count used in run.
+ * @param measureFrames Measure frame count used in run.
+ */
 void WriteMarkdownResults(const std::string& outputPath,
                           const std::vector<PerfResult>& results,
                           int warmupFrames,
@@ -279,6 +338,10 @@ void WriteMarkdownResults(const std::string& outputPath,
 
 }  // namespace
 
+/**
+ * @brief Entry point for benchmark comparison executable.
+ * @return EXIT_SUCCESS on successful benchmark execution.
+ */
 int main() {
   try {
     app::Config config = app::Config::Default();

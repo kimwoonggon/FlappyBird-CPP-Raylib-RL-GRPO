@@ -1,3 +1,8 @@
+/**
+ * @file src/main.cpp
+ * @brief Implementation for main.
+ */
+
 #include "app/App.h"
 #include "app/Config.h"
 
@@ -8,6 +13,11 @@
 
 namespace {
 
+/**
+ * @brief Reads environment variable and normalizes it to lowercase.
+ * @param name Environment variable name.
+ * @return Lowercased value or empty string if unset.
+ */
 std::string ReadEnvLower(const char* name) {
   const char* value = std::getenv(name);
   if (value == nullptr) {
@@ -20,6 +30,11 @@ std::string ReadEnvLower(const char* name) {
   return out;
 }
 
+/**
+ * @brief Parses inference backend value from environment text.
+ * @param value Lowercased backend token.
+ * @return Parsed inference backend enum.
+ */
 app::InferenceBackend ParseInferenceBackend(const std::string& value) {
   if (value == "cpu") {
     return app::InferenceBackend::kCpu;
@@ -30,6 +45,11 @@ app::InferenceBackend ParseInferenceBackend(const std::string& value) {
   return app::InferenceBackend::kAuto;
 }
 
+/**
+ * @brief Parses preprocessing backend value from environment text.
+ * @param value Lowercased backend token.
+ * @return Parsed preprocess backend enum.
+ */
 app::PreprocessBackend ParsePreprocessBackend(const std::string& value) {
   if (value == "cpu") {
     return app::PreprocessBackend::kCpu;
@@ -42,6 +62,10 @@ app::PreprocessBackend ParsePreprocessBackend(const std::string& value) {
 
 }  // namespace
 
+/**
+ * @brief Program entry point for primary runtime binary.
+ * @return Process exit code.
+ */
 int main() {
   app::Config config = app::Config::Default();
   config.ai.inferenceBackend = ParseInferenceBackend(ReadEnvLower("FLAPPY_INFERENCE"));

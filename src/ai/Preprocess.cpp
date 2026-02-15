@@ -1,11 +1,25 @@
+/**
+ * @file src/ai/Preprocess.cpp
+ * @brief Implementation for Preprocess.
+ */
+
 #include "ai/Preprocess.h"
 
 #include <stdexcept>
 
 namespace ai {
 
+/**
+ * @brief Stores preprocessing-related AI config snapshot.
+ * @param config Runtime configuration.
+ */
 Preprocess::Preprocess(const app::Config& config) : ai_(config.ai) {}
 
+/**
+ * @brief Runs CPU preprocessing from raw scene frame.
+ * @param source Source frame image.
+ * @return Binary, vertically flipped model input frame.
+ */
 std::vector<float> Preprocess::Process(const Image& source) const {
   Image cutCopy = ImageCopy(source);
 
@@ -41,6 +55,11 @@ std::vector<float> Preprocess::Process(const Image& source) const {
   return values;
 }
 
+/**
+ * @brief Finalizes lightweight postprocess for GPU-preprocessed frame.
+ * @param preprocessed Preprocessed grayscale image with model dimensions.
+ * @return Binary, vertically flipped model input frame.
+ */
 std::vector<float> Preprocess::ProcessPreprocessed(const Image& preprocessed) const {
   if (preprocessed.width != ai_.inputSize || preprocessed.height != ai_.inputSize) {
     throw std::invalid_argument("preprocessed frame size mismatch");

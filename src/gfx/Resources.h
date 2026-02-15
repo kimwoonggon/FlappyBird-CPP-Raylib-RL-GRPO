@@ -1,3 +1,8 @@
+/**
+ * @file src/gfx/Resources.h
+ * @brief Declarations for Resources.
+ */
+
 #pragma once
 
 #include <string>
@@ -6,6 +11,9 @@
 
 namespace gfx {
 
+/**
+ * @brief RAII wrapper for raylib `Texture2D`.
+ */
 class TextureResource {
  public:
   TextureResource() = default;
@@ -31,18 +39,29 @@ class TextureResource {
     return *this;
   }
 
+  /**
+   * @brief Loads texture from file path.
+   * @param path Texture file path.
+   */
   void Load(const std::string& path) {
     Reset();
     texture_ = LoadTexture(path.c_str());
     loaded_ = texture_.id > 0;
   }
 
+  /**
+   * @brief Uploads texture from in-memory image.
+   * @param image Source image.
+   */
   void LoadFromImage(const Image& image) {
     Reset();
     texture_ = LoadTextureFromImage(image);
     loaded_ = texture_.id > 0;
   }
 
+  /**
+   * @brief Releases owned texture if loaded.
+   */
   void Reset() {
     if (loaded_) {
       UnloadTexture(texture_);
@@ -51,7 +70,15 @@ class TextureResource {
     }
   }
 
+  /**
+   * @brief Returns underlying raylib texture.
+   * @return Texture handle.
+   */
   const Texture2D& Get() const { return texture_; }
+  /**
+   * @brief Checks whether texture is currently loaded.
+   * @return True if valid.
+   */
   bool IsValid() const { return loaded_; }
 
  private:
@@ -59,6 +86,9 @@ class TextureResource {
   bool loaded_ = false;
 };
 
+/**
+ * @brief RAII wrapper for raylib `Sound`.
+ */
 class SoundResource {
  public:
   SoundResource() = default;
@@ -84,12 +114,19 @@ class SoundResource {
     return *this;
   }
 
+  /**
+   * @brief Loads sound from file path.
+   * @param path Sound file path.
+   */
   void Load(const std::string& path) {
     Reset();
     sound_ = LoadSound(path.c_str());
     loaded_ = sound_.frameCount > 0;
   }
 
+  /**
+   * @brief Releases owned sound if loaded.
+   */
   void Reset() {
     if (loaded_) {
       UnloadSound(sound_);
@@ -98,7 +135,15 @@ class SoundResource {
     }
   }
 
+  /**
+   * @brief Returns underlying sound handle.
+   * @return Sound object.
+   */
   const Sound& Get() const { return sound_; }
+  /**
+   * @brief Checks whether sound is currently loaded.
+   * @return True if valid.
+   */
   bool IsValid() const { return loaded_; }
 
  private:
@@ -106,6 +151,9 @@ class SoundResource {
   bool loaded_ = false;
 };
 
+/**
+ * @brief RAII wrapper for raylib `RenderTexture2D`.
+ */
 class RenderTextureResource {
  public:
   RenderTextureResource() = default;
@@ -131,12 +179,20 @@ class RenderTextureResource {
     return *this;
   }
 
+  /**
+   * @brief Allocates render texture with given dimensions.
+   * @param width Texture width.
+   * @param height Texture height.
+   */
   void Load(int width, int height) {
     Reset();
     texture_ = LoadRenderTexture(width, height);
     loaded_ = texture_.id > 0;
   }
 
+  /**
+   * @brief Releases owned render texture if loaded.
+   */
   void Reset() {
     if (loaded_) {
       UnloadRenderTexture(texture_);
@@ -145,7 +201,15 @@ class RenderTextureResource {
     }
   }
 
+  /**
+   * @brief Returns underlying render texture.
+   * @return Render texture handle.
+   */
   const RenderTexture2D& Get() const { return texture_; }
+  /**
+   * @brief Checks whether render texture is loaded.
+   * @return True if valid.
+   */
   bool IsValid() const { return loaded_; }
 
  private:
@@ -153,6 +217,9 @@ class RenderTextureResource {
   bool loaded_ = false;
 };
 
+/**
+ * @brief RAII wrapper for raylib `Shader`.
+ */
 class ShaderResource {
  public:
   ShaderResource() = default;
@@ -177,12 +244,20 @@ class ShaderResource {
     return *this;
   }
 
+  /**
+   * @brief Compiles shader from source strings.
+   * @param vertexCode Vertex shader source, nullable for default.
+   * @param fragmentCode Fragment shader source.
+   */
   void LoadFromMemory(const char* vertexCode, const char* fragmentCode) {
     Reset();
     shader_ = LoadShaderFromMemory(vertexCode, fragmentCode);
     loaded_ = shader_.id > 0;
   }
 
+  /**
+   * @brief Releases owned shader if loaded.
+   */
   void Reset() {
     if (loaded_) {
       UnloadShader(shader_);
@@ -191,7 +266,15 @@ class ShaderResource {
     }
   }
 
+  /**
+   * @brief Returns underlying shader object.
+   * @return Shader handle.
+   */
   const Shader& Get() const { return shader_; }
+  /**
+   * @brief Checks whether shader is compiled and loaded.
+   * @return True if valid.
+   */
   bool IsValid() const { return loaded_; }
 
  private:
@@ -199,6 +282,9 @@ class ShaderResource {
   bool loaded_ = false;
 };
 
+/**
+ * @brief RAII wrapper for raylib `Image`.
+ */
 class ImageResource {
  public:
   ImageResource() = default;
@@ -224,12 +310,19 @@ class ImageResource {
     return *this;
   }
 
+  /**
+   * @brief Loads image from file path.
+   * @param path Image file path.
+   */
   void Load(const std::string& path) {
     Reset();
     image_ = LoadImage(path.c_str());
     loaded_ = image_.data != nullptr;
   }
 
+  /**
+   * @brief Releases owned image if loaded.
+   */
   void Reset() {
     if (loaded_) {
       UnloadImage(image_);
@@ -238,7 +331,15 @@ class ImageResource {
     }
   }
 
+  /**
+   * @brief Returns underlying image object.
+   * @return Image handle.
+   */
   const Image& Get() const { return image_; }
+  /**
+   * @brief Checks whether image is currently loaded.
+   * @return True if valid.
+   */
   bool IsValid() const { return loaded_; }
 
  private:

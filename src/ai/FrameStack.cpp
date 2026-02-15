@@ -1,9 +1,19 @@
+/**
+ * @file src/ai/FrameStack.cpp
+ * @brief Implementation for FrameStack.
+ */
+
 #include "ai/FrameStack.h"
 
 #include <stdexcept>
 
 namespace ai {
 
+/**
+ * @brief Creates bounded frame stack and validates dimensions.
+ * @param maxFrames Maximum number of frames to retain.
+ * @param frameSize Number of float elements per frame.
+ */
 FrameStack::FrameStack(int maxFrames, int frameSize)
     : maxFrames_(maxFrames), frameSize_(frameSize) {
   if (maxFrames_ <= 0 || frameSize_ <= 0) {
@@ -11,6 +21,10 @@ FrameStack::FrameStack(int maxFrames, int frameSize)
   }
 }
 
+/**
+ * @brief Pushes a frame into stack and evicts oldest frames when full.
+ * @param frame Flat frame data.
+ */
 void FrameStack::Push(const std::vector<float>& frame) {
   if (static_cast<int>(frame.size()) != frameSize_) {
     throw std::invalid_argument("frame size mismatch");
@@ -22,18 +36,33 @@ void FrameStack::Push(const std::vector<float>& frame) {
   }
 }
 
+/**
+ * @brief Clears all buffered frames.
+ */
 void FrameStack::Clear() {
   frames_.clear();
 }
 
+/**
+ * @brief Returns whether the frame stack reached capacity.
+ * @return True when stack size equals configured max frame count.
+ */
 bool FrameStack::IsFull() const {
   return static_cast<int>(frames_.size()) == maxFrames_;
 }
 
+/**
+ * @brief Returns current number of buffered frames.
+ * @return Frame count.
+ */
 size_t FrameStack::Size() const {
   return frames_.size();
 }
 
+/**
+ * @brief Serializes stack as padded contiguous tensor values.
+ * @return Tensor data in chronological frame order.
+ */
 std::vector<float> FrameStack::ToTensor() const {
   std::vector<float> tensor;
   tensor.reserve(static_cast<size_t>(maxFrames_ * frameSize_));
@@ -50,6 +79,10 @@ std::vector<float> FrameStack::ToTensor() const {
   return tensor;
 }
 
+/**
+ * @brief Returns buffered frames as copy for debugging.
+ * @return List of per-frame vectors.
+ */
 std::vector<std::vector<float>> FrameStack::Frames() const {
   return std::vector<std::vector<float>>(frames_.begin(), frames_.end());
 }

@@ -1,22 +1,25 @@
+/**
+ * @file src/ai/OnnxPolicy.cpp
+ * @brief Implementation for OnnxPolicy.
+ */
+
 #include "ai/OnnxPolicy.h"
+#include "ai/OnnxPolicyProvider.h"
 
 #include <filesystem>
 #include <iostream>
 #include <stdexcept>
-
-#ifndef AI_ENABLE_COREML
-#define AI_ENABLE_COREML 1
-#endif
-
-#if defined(__APPLE__) && AI_ENABLE_COREML
-#include <coreml_provider_factory.h>
-#endif
 
 namespace ai {
 namespace {
 constexpr const char* kInputName = "input";
 constexpr const char* kOutputName = "output";
 
+/**
+ * @brief Converts inference backend enum to display text.
+ * @param backend Backend enum.
+ * @return Backend label string.
+ */
 const char* BackendToString(app::InferenceBackend backend) {
   switch (backend) {
     case app::InferenceBackend::kCoreMl:
@@ -30,6 +33,13 @@ const char* BackendToString(app::InferenceBackend backend) {
 }
 }  // namespace
 
+/**
+ * @brief Constructs policy wrapper and tries to load ONNX model session.
+ * @param modelPath Model path.
+ * @param inputSize Model input width/height.
+ * @param frameStack Number of stacked frames in input tensor.
+ * @param preferredBackend Preferred inference backend.
+ */
 OnnxPolicy::OnnxPolicy(const std::string& modelPath,
                        int inputSize,
                        int frameStack,
@@ -40,10 +50,13 @@ OnnxPolicy::OnnxPolicy(const std::string& modelPath,
       preferredBackend_(preferredBackend),
       activeBackend_(app::InferenceBackend::kCpu) {
   inputShape_ = {1, frameStack_, inputSize_, inputSize_};
-  inputTensorSize_ = static_cast<size_t>(frameStack_) * static_cast<size_t>(inputSize_) * static_cast<size_t>(inputSize_);
+      inputTensorSize_ = static_cast<size_t>(frameStack_) * static_cast<size_t>(inputSize_) * static_cast<size_t>(inputSize_);
   TryLoad();
 }
 
+/**
+ * @brief Creates ONNX Runtime environment/session and selects backend.
+ */
 void OnnxPolicy::TryLoad() {
   hasModel_ = false;
   activeBackend_ = app::InferenceBackend::kCpu;
@@ -57,31 +70,13 @@ void OnnxPolicy::TryLoad() {
     sessionOptions_.SetIntraOpNumThreads(1);
     sessionOptions_.SetGraphOptimizationLevel(GraphOptimizationLevel::ORT_ENABLE_EXTENDED);
 
-#if defined(__APPLE__) && AI_ENABLE_COREML
-    const bool wantsCoreMl = preferredBackend_ != app::InferenceBackend::kCpu;
-    if (wantsCoreMl) {
-      OrtStatus* coreMlStatus = OrtSessionOptionsAppendExecutionProvider_CoreML(sessionOptions_, COREML_FLAG_USE_NONE);
-      if (coreMlStatus != nullptr) {
-        const OrtApi& api = Ort::GetApi();
-        const char* message = api.GetErrorMessage(coreMlStatus);
-        std::cerr << "CoreML EP unavailable, fallback to CPU: "
-                  << (message != nullptr ? message : "unknown error") << std::endl;
-        api.ReleaseStatus(coreMlStatus);
-      } else {
-        activeBackend_ = app::InferenceBackend::kCoreMl;
-      }
+    if (WantsCoreMl()) {
+      TryEnableCoreMlProvider();
     }
-#else
-    if (preferredBackend_ == app::InferenceBackend::kCoreMl) {
-      std::cerr << "CoreML backend requested but this binary was built without CoreML support; fallback to CPU."
-                << std::endl;
-    }
-#endif
 
     session_ = std::make_unique<Ort::Session>(*env_, modelPath_.c_str(), sessionOptions_);
     hasModel_ = true;
-    std::cout << "ONNX Runtime active backend: " << BackendToString(activeBackend_)
-              << " (requested=" << BackendToString(preferredBackend_) << ")" << std::endl;
+    LogBackendSelection();
   } catch (const Ort::Exception& ex) {
     std::cerr << "Failed to load ONNX model: " << ex.what() << std::endl;
     hasModel_ = false;
@@ -89,6 +84,50 @@ void OnnxPolicy::TryLoad() {
   }
 }
 
+/**
+ * @brief Returns whether caller allows attempting CoreML provider.
+ * @return True unless explicit CPU mode was requested.
+ */
+bool OnnxPolicy::WantsCoreMl() const {
+  return preferredBackend_ != app::InferenceBackend::kCpu;
+}
+
+/**
+ * @brief Attempts to append CoreML execution provider to session options.
+ * @return True when CoreML provider was enabled.
+ */
+bool OnnxPolicy::TryEnableCoreMlProvider() {
+  std::string errorMessage;
+  const bool enabled = TryAppendCoreMlExecutionProvider(&sessionOptions_, &errorMessage);
+  if (enabled) {
+    activeBackend_ = app::InferenceBackend::kCoreMl;
+    return true;
+  }
+
+  const bool strictCoreMlRequest = preferredBackend_ == app::InferenceBackend::kCoreMl;
+  if (strictCoreMlRequest) {
+    std::cerr << "CoreML backend requested but unavailable, fallback to CPU: "
+              << errorMessage << std::endl;
+  } else if (!errorMessage.empty()) {
+    std::cerr << "CoreML auto-selection skipped, fallback to CPU: "
+              << errorMessage << std::endl;
+  }
+  return false;
+}
+
+/**
+ * @brief Logs requested and active backend selection.
+ */
+void OnnxPolicy::LogBackendSelection() const {
+  std::cout << "ONNX Runtime active backend: " << BackendToString(activeBackend_)
+            << " (requested=" << BackendToString(preferredBackend_) << ")" << std::endl;
+}
+
+/**
+ * @brief Runs policy inference for one stacked NCHW tensor.
+ * @param input Input tensor values.
+ * @return Two action probabilities [no-op, flap].
+ */
 std::array<float, 2> OnnxPolicy::Infer(const std::vector<float>& input) const {
   if (!hasModel_ || !session_) {
     throw std::runtime_error("ONNX model is not loaded");
@@ -123,10 +162,18 @@ std::array<float, 2> OnnxPolicy::Infer(const std::vector<float>& input) const {
   }
 }
 
+/**
+ * @brief Returns currently active backend label.
+ * @return Backend label.
+ */
 const char* OnnxPolicy::ActiveBackendName() const {
   return BackendToString(activeBackend_);
 }
 
+/**
+ * @brief Returns whether CoreML provider is actively used.
+ * @return True when active backend is CoreML.
+ */
 bool OnnxPolicy::IsUsingCoreMl() const {
   return activeBackend_ == app::InferenceBackend::kCoreMl;
 }
