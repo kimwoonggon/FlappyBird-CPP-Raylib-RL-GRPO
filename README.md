@@ -1,5 +1,10 @@
 # FlappyBird-CPP-RAYLIB-RL-GRPO
 
+> Branch notice for Medium readers
+> - The branch used in the original Medium post is preserved as `previous_medium`.
+> - The default `main` branch now tracks the refactored C++ code from `feat/cpp-refactoring`.
+> - If you want the exact post snapshot, checkout `previous_medium`.
+
 A Flappy Bird game implementation with AI reinforcement learning capabilities, built with C++ and Raylib.  
 To train the RL Model, GRPO method is partially adapted instead of PPO or DQN.
 
